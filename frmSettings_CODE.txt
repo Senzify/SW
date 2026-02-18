@@ -1,0 +1,451 @@
+Option Explicit
+
+Private mAccepted As Boolean
+Private mCurrentSettings As TMacroSettings
+Private mHasCurrentSettings As Boolean
+
+Private Const FORM_WIDTH As Single = 1100
+Private Const FORM_HEIGHT As Single = 650
+
+Private Const FORM_MARGIN As Single = 12
+Private Const BTN_W As Single = 95
+Private Const BTN_H As Single = 28
+Private Const BTN_GAP As Single = 8
+Private Const MP_HEIGHT_BOTTOM_SPACE As Single = 56
+
+Private Function Ctrl(ByVal name As String) As Object
+    On Error Resume Next
+    Set Ctrl = Me.Controls(name)
+    On Error GoTo 0
+End Function
+
+Private Sub SetBox(ByVal name As String, ByVal l As Single, ByVal t As Single, ByVal w As Single, ByVal h As Single)
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    c.Left = l
+    c.Top = t
+    c.Width = w
+    c.Height = h
+    On Error GoTo 0
+End Sub
+
+Private Sub SetCaption(ByVal name As String, ByVal text As String)
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    c.Caption = text
+    On Error GoTo 0
+End Sub
+
+Private Function GetText(ByVal name As String) As String
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Function
+
+    On Error Resume Next
+    GetText = CStr(c.Text)
+    On Error GoTo 0
+End Function
+
+Private Sub SetText(ByVal name As String, ByVal value As String)
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    c.Text = value
+    On Error GoTo 0
+End Sub
+
+
+Private Function GetTextOrDefault(ByVal name As String, ByVal defaultValue As String) As String
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then
+        GetTextOrDefault = defaultValue
+        Exit Function
+    End If
+
+    On Error Resume Next
+    GetTextOrDefault = CStr(c.Text)
+    If Err.Number <> 0 Then
+        Err.Clear
+        GetTextOrDefault = defaultValue
+    End If
+    On Error GoTo 0
+End Function
+
+Private Function GetChkOrDefault(ByVal name As String, ByVal defaultValue As Boolean) As Boolean
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then
+        GetChkOrDefault = defaultValue
+        Exit Function
+    End If
+
+    On Error Resume Next
+    GetChkOrDefault = CBool(c.Value)
+    If Err.Number <> 0 Then
+        Err.Clear
+        GetChkOrDefault = defaultValue
+    End If
+    On Error GoTo 0
+End Function
+
+Private Function GetChk(ByVal name As String) As Boolean
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Function
+
+    On Error Resume Next
+    GetChk = CBool(c.Value)
+    On Error GoTo 0
+End Function
+
+Private Sub SetChk(ByVal name As String, ByVal value As Boolean)
+    Dim c As Object
+    Set c = Ctrl(name)
+    If c Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    c.Value = IIf(value, -1, 0)
+    On Error GoTo 0
+End Sub
+
+Private Function GetMultiPage() As Object
+    Set GetMultiPage = Ctrl("mpMain")
+    If GetMultiPage Is Nothing Then Set GetMultiPage = Ctrl("MultiPage1")
+End Function
+
+
+Private Function MatrixChkName(ByVal isDelete As Boolean, ByVal cls As Integer, ByVal prop As Integer) As String
+    If isDelete Then
+        MatrixChkName = "chkDel_" & CStr(cls) & "_" & CStr(prop)
+    Else
+        MatrixChkName = "chkCre_" & CStr(cls) & "_" & CStr(prop)
+    End If
+End Function
+
+Private Sub BindMatrixFromSettings(ByRef s As TMacroSettings)
+    Dim cls As Integer, prop As Integer
+
+    For cls = 1 To 3
+        For prop = 1 To 11
+            SetChk MatrixChkName(True, cls, prop), GetDeleteFlag(s, cls, prop)
+        Next prop
+        For prop = 1 To 10
+            SetChk MatrixChkName(False, cls, prop), GetCreateFlag(s, cls, prop)
+        Next prop
+    Next cls
+End Sub
+
+Private Sub ReadMatrixToSettings(ByRef s As TMacroSettings)
+    Dim cls As Integer, prop As Integer
+
+    For cls = 1 To 3
+        For prop = 1 To 11
+            SetDeleteFlag s, cls, prop, GetChkOrDefault(MatrixChkName(True, cls, prop), GetDeleteFlag(s, cls, prop))
+        Next prop
+        For prop = 1 To 10
+            SetCreateFlag s, cls, prop, GetChkOrDefault(MatrixChkName(False, cls, prop), GetCreateFlag(s, cls, prop))
+        Next prop
+    Next cls
+End Sub
+
+Private Sub LayoutPagePropsMatrix()
+    Dim x As Single, y As Single
+    Dim colW As Single, rowH As Single
+    Dim cls As Integer, prop As Integer
+    Dim leftLabel As String
+
+    x = 16
+    y = 20
+    colW = 58
+    rowH = 18
+
+    SetBox "lblDelTitle", x, y, 120, 18
+    y = y + 20
+
+    For cls = 1 To 3
+        SetBox "lblDelRow_" & CStr(cls), x, y + (cls - 1) * rowH, 130, rowH
+    Next cls
+
+    For prop = 1 To 11
+        SetBox "lblDelCol_" & CStr(prop), x + 130 + (prop - 1) * colW, y - 16, colW, 16
+        For cls = 1 To 3
+            SetBox MatrixChkName(True, cls, prop), x + 130 + (prop - 1) * colW + 18, y + (cls - 1) * rowH, 16, 16
+        Next cls
+    Next prop
+
+    y = y + 3 * rowH + 24
+    SetBox "lblCreTitle", x, y, 120, 18
+    y = y + 20
+
+    For cls = 1 To 3
+        SetBox "lblCreRow_" & CStr(cls), x, y + (cls - 1) * rowH, 130, rowH
+    Next cls
+
+    For prop = 1 To 10
+        SetBox "lblCreCol_" & CStr(prop), x + 130 + (prop - 1) * colW, y - 16, colW, 16
+        For cls = 1 To 3
+            SetBox MatrixChkName(False, cls, prop), x + 130 + (prop - 1) * colW + 18, y + (cls - 1) * rowH, 16, 16
+        Next cls
+    Next prop
+
+    SetCaption "lblDelTitle", "Удалять"
+    SetCaption "lblCreTitle", "Создавать"
+
+    SetCaption "lblDelRow_1", "Деталь"
+    SetCaption "lblDelRow_2", "Покупная/исключение"
+    SetCaption "lblDelRow_3", "Сборка"
+
+    SetCaption "lblCreRow_1", "Деталь"
+    SetCaption "lblCreRow_2", "Покупная/исключение"
+    SetCaption "lblCreRow_3", "Сборка"
+
+    Dim names(1 To 11) As String
+    names(1) = "Обозн"
+    names(2) = "Наимен"
+    names(3) = "Полн.наим"
+    names(4) = "Констр"
+    names(5) = "IsFast"
+    names(6) = "Длина"
+    names(7) = "Ширина"
+    names(8) = "Толщина"
+    names(9) = "Масса"
+    names(10) = "Материал"
+    names(11) = "Другие"
+
+    For prop = 1 To 11
+        SetCaption "lblDelCol_" & CStr(prop), names(prop)
+        If prop <= 10 Then SetCaption "lblCreCol_" & CStr(prop), names(prop)
+    Next prop
+End Sub
+
+Public Property Get IsAccepted() As Boolean
+    IsAccepted = mAccepted
+End Property
+
+Private Sub UserForm_Initialize()
+    BuildLayout
+End Sub
+
+Private Sub BuildLayout()
+    Me.Caption = "Настройки макроса"
+    Me.Width = FORM_WIDTH
+    Me.Height = FORM_HEIGHT
+
+    LayoutMainMultiPage
+    LayoutBottomButtons
+
+    LayoutPageGeneral
+    LayoutPageRules
+    LayoutPageProcessing
+    LayoutPagePropsMatrix
+End Sub
+
+Private Sub LayoutMainMultiPage()
+    Dim mp As Object
+    Set mp = GetMultiPage()
+    If mp Is Nothing Then Exit Sub
+
+    mp.Left = FORM_MARGIN
+    mp.Top = FORM_MARGIN
+    mp.Width = Me.InsideWidth - FORM_MARGIN * 2
+    mp.Height = Me.InsideHeight - MP_HEIGHT_BOTTOM_SPACE - FORM_MARGIN
+End Sub
+
+Private Sub LayoutBottomButtons()
+    Dim y As Single
+    y = Me.InsideHeight - BTN_H - FORM_MARGIN
+
+    SetBox "btnOK", Me.InsideWidth - FORM_MARGIN - BTN_W, y, BTN_W, BTN_H
+    SetBox "btnCancel", Me.InsideWidth - FORM_MARGIN - BTN_W * 2 - BTN_GAP, y, BTN_W, BTN_H
+    SetBox "btnApply", Me.InsideWidth - FORM_MARGIN - BTN_W * 3 - BTN_GAP * 2, y, BTN_W, BTN_H
+End Sub
+
+Private Function GetPageInsideWidth(ByVal pageName As String, ByVal fallbackVal As Single) As Single
+    Dim mp As Object
+    Set mp = GetMultiPage()
+    If mp Is Nothing Then
+        GetPageInsideWidth = fallbackVal
+        Exit Function
+    End If
+
+    On Error Resume Next
+    GetPageInsideWidth = mp.Pages(pageName).InsideWidth
+    If Err.Number <> 0 Then
+        Err.Clear
+        GetPageInsideWidth = fallbackVal
+    End If
+    On Error GoTo 0
+End Function
+
+Private Sub LayoutPageGeneral()
+    Dim x As Single, y As Single, contentW As Single
+    x = 16
+    y = 20
+    contentW = GetPageInsideWidth("pgGeneral", Me.InsideWidth - 32) - 32
+
+    SetBox "lblConstructorName", x, y, 110, 18
+    SetBox "txtConstructorName", x, y + 22, contentW, 22
+
+    SetBox "chkShowReport", x, y + 60, contentW, 18
+    SetBox "chkCloseDocsAfterRun", x, y + 82, contentW, 18
+    SetBox "chkShowSettingsOnStart", x, y + 104, contentW, 18
+End Sub
+
+Private Sub LayoutPageRules()
+    Dim x As Single, y As Single, contentW As Single
+    Dim tb As Object
+
+    x = 16
+    y = 20
+    contentW = GetPageInsideWidth("pgRules", Me.InsideWidth - 32) - 32
+
+    SetBox "lblFastenerPrefix", x, y, 140, 18
+    SetBox "txtFastenerPrefix", x + 145, y - 2, 120, 22
+
+    SetBox "chkSkipReadOnly", x, y + 28, contentW, 18
+    SetBox "lblExceptions", x, y + 52, contentW, 18
+
+    SetBox "txtExceptionInput", x, y + 72, contentW, 230
+
+    Set tb = Ctrl("txtExceptionInput")
+    If Not tb Is Nothing Then
+        On Error Resume Next
+        tb.MultiLine = True
+        tb.EnterKeyBehavior = True
+        tb.WordWrap = False
+        tb.ScrollBars = 2 ' fmScrollBarsVertical
+        On Error GoTo 0
+    End If
+End Sub
+
+Private Sub LayoutPageProcessing()
+    Dim x As Single, y As Single, contentW As Single
+    x = 16
+    y = 24
+    contentW = GetPageInsideWidth("pgProcessing", Me.InsideWidth - 32) - 32
+
+    SetBox "chkClearProperties", x, y, contentW, 18
+    SetBox "chkEnableBBox", x, y + 24, contentW, 18
+End Sub
+
+Public Sub InitFromSettings(ByRef s As TMacroSettings)
+    mAccepted = False
+    mCurrentSettings = s
+    mHasCurrentSettings = True
+
+    SetText "txtConstructorName", s.ConstructorName
+    SetChk "chkShowReport", s.ShowReport
+    SetChk "chkCloseDocsAfterRun", s.CloseDocsAfterRun
+    SetChk "chkShowSettingsOnStart", s.ShowSettingsOnStart
+
+    SetText "txtFastenerPrefix", s.FastenerPrefix
+    SetChk "chkSkipReadOnly", s.SkipReadOnly
+
+    SetChk "chkClearProperties", s.ClearProperties
+    SetChk "chkEnableBBox", s.EnableBBox
+
+    SetText "txtExceptionInput", s.ExceptionsText
+
+    BindMatrixFromSettings s
+End Sub
+
+Public Sub WriteToSettings(ByRef s As TMacroSettings)
+    If mHasCurrentSettings Then
+        s = mCurrentSettings
+    Else
+        SetDefaults s
+    End If
+
+    s.ConstructorName = Trim$(GetTextOrDefault("txtConstructorName", s.ConstructorName))
+    If s.ConstructorName = "" Then s.ConstructorName = "Неизвестен"
+
+    s.ShowReport = GetChkOrDefault("chkShowReport", s.ShowReport)
+    s.CloseDocsAfterRun = GetChkOrDefault("chkCloseDocsAfterRun", s.CloseDocsAfterRun)
+    s.ShowSettingsOnStart = GetChkOrDefault("chkShowSettingsOnStart", s.ShowSettingsOnStart)
+
+    s.FastenerPrefix = Trim$(GetTextOrDefault("txtFastenerPrefix", s.FastenerPrefix))
+    If s.FastenerPrefix = "" Then s.FastenerPrefix = "П"
+
+    s.SkipReadOnly = GetChkOrDefault("chkSkipReadOnly", s.SkipReadOnly)
+    s.ClearProperties = GetChkOrDefault("chkClearProperties", s.ClearProperties)
+    s.EnableBBox = GetChkOrDefault("chkEnableBBox", s.EnableBBox)
+
+    s.ExceptionsText = NormalizeExceptionsText(GetTextOrDefault("txtExceptionInput", s.ExceptionsText))
+
+    ReadMatrixToSettings s
+
+    mCurrentSettings = s
+    mHasCurrentSettings = True
+End Sub
+
+Private Function NormalizeExceptionsText(ByVal rawText As String) As String
+    Dim result As String
+    Dim arr As Variant, v As Variant
+
+    result = ""
+    arr = SplitExceptionsToArray(rawText)
+
+    For Each v In arr
+        result = AddExceptionToText(result, CStr(v))
+    Next v
+
+    NormalizeExceptionsText = result
+End Function
+
+Private Function ValidateForm() As Boolean
+    If Trim$(GetTextOrDefault("txtConstructorName", "")) = "" Then
+        MsgBox "Поле 'Конструктор' не должно быть пустым.", vbExclamation, "Проверка формы"
+        Exit Function
+    End If
+
+    If Len(Trim$(GetTextOrDefault("txtFastenerPrefix", ""))) > 5 Then
+        MsgBox "Префикс покупных должен быть не длиннее 5 символов.", vbExclamation, "Проверка формы"
+        Exit Function
+    End If
+
+    ValidateForm = True
+End Function
+
+Private Sub btnOK_Click()
+    If Not ValidateForm() Then Exit Sub
+    mAccepted = True
+    Me.Hide
+End Sub
+
+Private Sub btnCancel_Click()
+    mAccepted = False
+    Me.Hide
+End Sub
+
+Private Sub btnApply_Click()
+    If Not ValidateForm() Then Exit Sub
+
+    Dim s As TMacroSettings
+    Dim macroFolder As String
+    Dim app As Object
+
+    WriteToSettings s
+
+    Set app = Application.SldWorks
+    macroFolder = GetMacroFolderPath(app)
+
+    Dim errText As String
+    If SaveSettingsSafe(macroFolder & SETTINGS_FILE_NAME, s, errText) Then
+        MsgBox "Настройки сохранены.", vbInformation, "frmSettings"
+    Else
+        MsgBox "Не удалось сохранить настройки:" & vbCrLf & errText, vbExclamation, "frmSettings"
+    End If
+End Sub
+
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If CloseMode = 0 Then mAccepted = False
+End Sub
