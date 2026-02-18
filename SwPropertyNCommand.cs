@@ -668,7 +668,10 @@ namespace VasilevTools.Commands
                     {
                         if (key.Equals("FastenerPrefix", StringComparison.OrdinalIgnoreCase)) s.FastenerPrefix = value;
                         if (key.Equals("SkipReadOnly", StringComparison.OrdinalIgnoreCase)) s.SkipReadOnly = ParseBool(value, s.SkipReadOnly);
-                        if (key.Equals("ExceptionsText", StringComparison.OrdinalIgnoreCase)) s.ExceptionsText = value.Replace("\\n", "\n");
+                        if (key.Equals("ExceptionsText", StringComparison.OrdinalIgnoreCase))
+                        {
+                            s.ExceptionsText = value.Replace("\\n", Environment.NewLine);
+                        }
                     }
                     else if (section.Equals("Processing", StringComparison.OrdinalIgnoreCase))
                     {
@@ -691,7 +694,7 @@ namespace VasilevTools.Commands
                 // Приоритет legacy-формата [Exceptions], если он есть.
                 if (exceptionItems.Count > 0)
                 {
-                    s.ExceptionsText = string.Join("\n", exceptionItems.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()));
+                    s.ExceptionsText = string.Join(Environment.NewLine, exceptionItems.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()));
                 }
 
                 return s;
@@ -921,7 +924,7 @@ namespace VasilevTools.Commands
             {
                 _txtConstructor.Text = Settings.ConstructorName;
                 _txtFastenerPrefix.Text = Settings.FastenerPrefix;
-                _txtExceptions.Text = Settings.ExceptionsText;
+                _txtExceptions.Text = (Settings.ExceptionsText ?? string.Empty).Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
                 _chkSkipReadOnly.Checked = Settings.SkipReadOnly;
                 _chkClearProperties.Checked = Settings.ClearProperties;
                 _chkEnableBBox.Checked = Settings.EnableBBox;
